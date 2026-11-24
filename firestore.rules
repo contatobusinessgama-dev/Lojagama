@@ -1,0 +1,187 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net (Default Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Core Primitives
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Validation Blueprint: UserVault
+    function isValidUserVault(data) {
+      return data.keys().hasAll(['uid', 'displayName', 'cartIds', 'ownedIds', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'displayName', 'cartIds', 'ownedIds', 'createdAt', 'updatedAt'])
+        && data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128 && data.uid.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.uid == request.auth.uid
+        && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 120
+        && data.cartIds is list && data.cartIds.size() <= 30
+        && (data.cartIds.size() == 0 || (data.cartIds[0] is string && data.cartIds[0].size() <= 128))
+        && data.ownedIds is list && data.ownedIds.size() <= 50
+        && (data.ownedIds.size() == 0 || (data.ownedIds[0] is string && data.ownedIds[0].size() <= 128))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    // Validation Blueprint: UserReceipt
+    function isValidUserReceipt(data) {
+      return data.keys().hasAll([
+          'uid',
+          'receiptCode',
+          'dateLabel',
+          'itemsSummary',
+          'itemIds',
+          'total',
+          'paymentMethod',
+          'transactionCode',
+          'status',
+          'createdAt'
+        ])
+        && data.keys().hasOnly([
+          'uid',
+          'receiptCode',
+          'dateLabel',
+          'itemsSummary',
+          'itemIds',
+          'total',
+          'paymentMethod',
+          'transactionCode',
+          'status',
+          'createdAt'
+        ])
+        && data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128 && data.uid.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.uid == request.auth.uid
+        && data.receiptCode is string && data.receiptCode.size() >= 1 && data.receiptCode.size() <= 64
+        && data.dateLabel is string && data.dateLabel.size() >= 1 && data.dateLabel.size() <= 64
+        && data.itemsSummary is string && data.itemsSummary.size() >= 1 && data.itemsSummary.size() <= 1000
+        && data.itemIds is list && data.itemIds.size() >= 1 && data.itemIds.size() <= 25
+        && data.itemIds[0] is string && data.itemIds[0].size() <= 128
+        && (data.total is int || data.total is float) && data.total >= 0 && data.total <= 100000
+        && data.paymentMethod is string && data.paymentMethod.size() >= 1 && data.paymentMethod.size() <= 64
+        && data.transactionCode is string && data.transactionCode.size() >= 1 && data.transactionCode.size() <= 128
+        && data.status is string && data.status.size() <= 32 && data.status == 'completed'
+        && data.createdAt is timestamp;
+    }
+
+    // Validation Blueprint: AppReviewDoc
+    function isValidAppReview(data) {
+      return data.keys().hasAll([
+          'appId',
+          'authorUid',
+          'author',
+          'role',
+          'rating',
+          'comment',
+          'dateLabel',
+          'version',
+          'createdAt'
+        ])
+        && data.keys().hasOnly([
+          'appId',
+          'authorUid',
+          'author',
+          'role',
+          'rating',
+          'comment',
+          'dateLabel',
+          'version',
+          'createdAt'
+        ])
+        && data.appId is string && data.appId.size() >= 1 && data.appId.size() <= 128 && data.appId.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.authorUid is string && data.authorUid.size() >= 1 && data.authorUid.size() <= 128 && data.authorUid.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.authorUid == request.auth.uid
+        && data.author is string && data.author.size() >= 1 && data.author.size() <= 80
+        && data.role is string && data.role.size() >= 1 && data.role.size() <= 80
+        && (data.rating is int || data.rating is float) && data.rating >= 1 && data.rating <= 5
+        && data.comment is string && data.comment.size() >= 1 && data.comment.size() <= 1000
+        && data.dateLabel is string && data.dateLabel.size() >= 1 && data.dateLabel.size() <= 40
+        && data.version is string && data.version.size() >= 1 && data.version.size() <= 32
+        && data.createdAt is timestamp;
+    }
+
+    // Collection: User Vaults
+    match /user_vaults/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow list: if false;
+
+      allow create: if isOwner(userId)
+        && isValidId(userId)
+        && isValidUserVault(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isOwner(userId)
+        && isValidId(userId)
+        && isValidUserVault(incoming())
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          // Action: Sync Cart or Library Owned Apps
+          incoming().diff(existing()).affectedKeys().hasOnly(['cartIds', 'ownedIds', 'displayName', 'updatedAt'])
+        );
+
+      allow delete: if false;
+
+      // Subcollection: User Receipts (Master Gate enforced)
+      match /receipts/{receiptId} {
+        allow get: if isOwner(userId)
+          && isValidId(userId)
+          && isValidId(receiptId)
+          && get(/databases/$(database)/documents/user_vaults/$(userId)).data.uid == request.auth.uid;
+
+        allow list: if isOwner(userId)
+          && existing().uid == request.auth.uid;
+
+        allow create: if isOwner(userId)
+          && isValidId(userId)
+          && isValidId(receiptId)
+          && isValidUserReceipt(incoming())
+          && incoming().createdAt == request.time
+          && getAfter(/databases/$(database)/documents/user_vaults/$(userId)).data.uid == request.auth.uid;
+
+        // Terminal State Locking: Receipts are completed and immutable
+        allow update: if false;
+        allow delete: if false;
+      }
+    }
+
+    // Collection: App Reviews
+    match /app_reviews/{reviewId} {
+      allow get: if isValidId(reviewId) && existing().rating >= 1;
+      allow list: if existing().rating >= 1 && existing().rating <= 5;
+
+      allow create: if isSignedIn()
+        && isValidId(reviewId)
+        && isValidAppReview(incoming())
+        && incoming().createdAt == request.time
+        && exists(/databases/$(database)/documents/user_vaults/$(request.auth.uid));
+
+      // Reviews are immutable once published; authors can delete their own review
+      allow update: if false;
+      allow delete: if isSignedIn()
+        && isValidId(reviewId)
+        && existing().authorUid == request.auth.uid;
+    }
+  }
+}

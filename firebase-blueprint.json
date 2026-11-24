@@ -1,0 +1,188 @@
+{
+  "entities": {
+    "UserVault": {
+      "title": "UserVault",
+      "description": "Private library and shopping cart state for an authenticated user.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase Auth UID of the owner.",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "User display name.",
+          "maxLength": 120
+        },
+        "cartIds": {
+          "type": "array",
+          "description": "Bounded list of app IDs currently in the user's shopping cart (max 30)."
+        },
+        "ownedIds": {
+          "type": "array",
+          "description": "Bounded list of app IDs purchased or installed by the user (max 50)."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of creation."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last update."
+        }
+      },
+      "required": ["uid", "displayName", "cartIds", "ownedIds", "createdAt", "updatedAt"]
+    },
+    "UserReceipt": {
+      "title": "UserReceipt",
+      "description": "Confirmed purchase or installation receipt belonging to a user.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase Auth UID of the buyer.",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "receiptCode": {
+          "type": "string",
+          "description": "Human-readable receipt identifier.",
+          "maxLength": 64
+        },
+        "dateLabel": {
+          "type": "string",
+          "description": "Formatted date of transaction.",
+          "maxLength": 64
+        },
+        "itemsSummary": {
+          "type": "string",
+          "description": "Formatted summary of purchased apps and versions.",
+          "maxLength": 1000
+        },
+        "itemIds": {
+          "type": "array",
+          "description": "Bounded list of app IDs included in this receipt (max 25)."
+        },
+        "total": {
+          "type": "number",
+          "description": "Total amount paid in BRL."
+        },
+        "paymentMethod": {
+          "type": "string",
+          "description": "Payment gateway and method used (e.g. Stripe Cartão, Mercado Pago PIX).",
+          "maxLength": 64
+        },
+        "transactionCode": {
+          "type": "string",
+          "description": "Gateway transaction or session reference.",
+          "maxLength": 128
+        },
+        "status": {
+          "type": "string",
+          "enum": ["completed"],
+          "description": "Terminal status of the receipt.",
+          "maxLength": 32
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of receipt creation."
+        }
+      },
+      "required": [
+        "uid",
+        "receiptCode",
+        "dateLabel",
+        "itemsSummary",
+        "itemIds",
+        "total",
+        "paymentMethod",
+        "transactionCode",
+        "status",
+        "createdAt"
+      ]
+    },
+    "AppReviewDoc": {
+      "title": "AppReviewDoc",
+      "description": "Public verified user review for an application in the catalog.",
+      "type": "object",
+      "properties": {
+        "appId": {
+          "type": "string",
+          "description": "Target application ID.",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "authorUid": {
+          "type": "string",
+          "description": "Firebase Auth UID of the reviewer.",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "author": {
+          "type": "string",
+          "description": "Display name of the reviewer.",
+          "maxLength": 80
+        },
+        "role": {
+          "type": "string",
+          "description": "Professional role or title of the reviewer.",
+          "maxLength": 80
+        },
+        "rating": {
+          "type": "number",
+          "description": "Star rating from 1 to 5."
+        },
+        "comment": {
+          "type": "string",
+          "description": "Technical review comment.",
+          "maxLength": 1000
+        },
+        "dateLabel": {
+          "type": "string",
+          "description": "Formatted date label.",
+          "maxLength": 40
+        },
+        "version": {
+          "type": "string",
+          "description": "App version reviewed.",
+          "maxLength": 32
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp."
+        }
+      },
+      "required": [
+        "appId",
+        "authorUid",
+        "author",
+        "role",
+        "rating",
+        "comment",
+        "dateLabel",
+        "version",
+        "createdAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/user_vaults/{userId}": {
+      "schema": { "$ref": "#/entities/UserVault" },
+      "description": "Stores each authenticated user's synced cartIds and ownedIds."
+    },
+    "/user_vaults/{userId}/receipts/{receiptId}": {
+      "schema": { "$ref": "#/entities/UserReceipt" },
+      "description": "Subcollection of immutable purchase receipts for a user."
+    },
+    "/app_reviews/{reviewId}": {
+      "schema": { "$ref": "#/entities/AppReviewDoc" },
+      "description": "Publicly readable community reviews for store applications."
+    }
+  }
+}
