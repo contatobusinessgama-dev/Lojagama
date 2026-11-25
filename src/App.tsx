@@ -283,7 +283,8 @@ function StorefrontContent() {
     const reviewsPath = 'app_reviews';
     const reviewsQuery = query(
       collection(db, 'app_reviews'),
-      where('rating', '>=', 1)
+      where('rating', '>=', 1),
+      where('rating', '<=', 5)
     );
 
     const unsubReviews = onSnapshot(
