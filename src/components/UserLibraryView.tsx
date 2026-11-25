@@ -11,7 +11,8 @@ import {
   ArrowUpRight,
   HardDrive,
   CloudCheck,
-  LogIn
+  LogIn,
+  Play
 } from 'lucide-react';
 
 interface UserLibraryViewProps {
@@ -20,6 +21,7 @@ interface UserLibraryViewProps {
   isAuthenticated: boolean;
   userEmail?: string | null;
   onSelectApp: (app: StoreApp) => void;
+  onLaunchApp: (app: StoreApp) => void;
   onExploreStore: () => void;
   onSignIn: () => void;
 }
@@ -30,6 +32,7 @@ export const UserLibraryView: React.FC<UserLibraryViewProps> = ({
   isAuthenticated,
   userEmail,
   onSelectApp,
+  onLaunchApp,
   onExploreStore,
   onSignIn
 }) => {
@@ -37,12 +40,37 @@ export const UserLibraryView: React.FC<UserLibraryViewProps> = ({
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [downloadedIds, setDownloadedIds] = useState<string[]>([]);
 
-  const handleTriggerDownload = (appId: string) => {
-    setDownloadingId(appId);
+  const handleTriggerDownload = (app: StoreApp) => {
+    setDownloadingId(app.id);
     setTimeout(() => {
       setDownloadingId(null);
-      setDownloadedIds((prev) => (prev.includes(appId) ? prev : [...prev, appId]));
-    }, 1100);
+      setDownloadedIds((prev) => (prev.includes(app.id) ? prev : [...prev, app.id]));
+      // Generate a real verified license & manifest file download
+      const manifestContent = JSON.stringify(
+        {
+          store: 'Aether Store Verified Package',
+          appId: app.id,
+          name: app.name,
+          developer: app.developer,
+          version: app.verification.version,
+          signatureHash: app.verification.signatureHash,
+          platforms: app.verification.platforms,
+          licensedTo: userEmail || 'Licença Local Verificada',
+          issuedAt: new Date().toISOString()
+        },
+        null,
+        2
+      );
+      const blob = new Blob([manifestContent], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${app.id}-v${app.verification.version}-verified-package.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 600);
   };
 
   return (
@@ -63,8 +91,8 @@ export const UserLibraryView: React.FC<UserLibraryViewProps> = ({
           </div>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
             {isAuthenticated
-              ? `Conta conectada (${userEmail}). Seus instaladores verificados e recibos fiscais estão salvos no banco de dados.`
-              : 'Gerencie seus instaladores verificados localmente ou entre com sua conta para sincronizar na nuvem.'}
+              ? `Conta conectada (${userEmail}). Execute seus aplicativos diretamente no navegador ou baixe os pacotes verificados.`
+              : 'Execute seus aplicativos verificados imediatamente no navegador ou entre com sua conta para sincronizar na nuvem.'}
           </p>
         </div>
 
@@ -129,7 +157,7 @@ export const UserLibraryView: React.FC<UserLibraryViewProps> = ({
                   Nenhum aplicativo instalado ou adquirido ainda
                 </h2>
                 <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                  Quando você instalar aplicativos gratuitos ou adquirir licenças pagas via Stripe ou Mercado Pago, eles aparecerão aqui prontos para download.
+                  Quando você instalar aplicativos gratuitos ou adquirir licenças pagas via Stripe ou Mercado Pago, eles aparecerão aqui prontos para execução e download.
                 </p>
               </div>
               <button
@@ -196,32 +224,37 @@ export const UserLibraryView: React.FC<UserLibraryViewProps> = ({
                       </div>
                     </div>
 
-                    <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-4">
-                      <div className="text-xs text-slate-500 dark:text-slate-400 font-mono truncate">
-                        {app.verification.signatureHash}
-                      </div>
+                    <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
+                      <button
+                        type="button"
+                        onClick={() => onLaunchApp(app)}
+                        className="flex-1 py-2.5 px-4 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors inline-flex items-center justify-center gap-2 cursor-pointer shadow-2xs"
+                      >
+                        <Play className="w-3.5 h-3.5 fill-current" />
+                        Abrir / Executar App
+                      </button>
 
                       <button
                         type="button"
                         disabled={isDownloading}
-                        onClick={() => handleTriggerDownload(app.id)}
-                        className={`px-4 py-2.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap shrink-0 inline-flex items-center gap-2 cursor-pointer ${
+                        onClick={() => handleTriggerDownload(app)}
+                        className={`px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap shrink-0 inline-flex items-center gap-1.5 cursor-pointer ${
                           isDownloaded
-                            ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
-                            : 'bg-blue-600 hover:bg-blue-700 text-white'
+                            ? 'bg-slate-100 dark:bg-slate-800 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                            : 'border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
                         }`}
                       >
                         {isDownloading ? (
-                          <span>Verificando & Baixando...</span>
+                          <span>Gerando Pacote...</span>
                         ) : isDownloaded ? (
                           <>
-                            <CheckCircle2 className="w-4 h-4" />
-                            Instalador Baixado
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            Pacote Baixado
                           </>
                         ) : (
                           <>
-                            <Download className="w-4 h-4" />
-                            Baixar Instalador ({app.verification.fileSize})
+                            <Download className="w-3.5 h-3.5" />
+                            Baixar ({app.verification.fileSize})
                           </>
                         )}
                       </button>

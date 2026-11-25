@@ -29,6 +29,7 @@ interface AppDetailModalProps {
   onClose: () => void;
   onPrimaryAction: (app: StoreApp, e: React.MouseEvent) => void;
   onOpenLibrary: () => void;
+  onLaunchApp: (app: StoreApp) => void;
   onAddReview: (appId: string, author: string, role: string, rating: number, comment: string) => void;
 }
 
@@ -39,6 +40,7 @@ export const AppDetailModal: React.FC<AppDetailModalProps> = ({
   onClose,
   onPrimaryAction,
   onOpenLibrary,
+  onLaunchApp,
   onAddReview
 }) => {
   const [selectedScreenshotIndex, setSelectedScreenshotIndex] = useState(0);
@@ -416,43 +418,58 @@ export const AppDetailModal: React.FC<AppDetailModalProps> = ({
               <div className="space-y-2.5">
                 <button
                   type="button"
-                  onClick={onOpenLibrary}
-                  className="w-full py-3.5 px-5 rounded-xl font-semibold text-sm bg-emerald-600 hover:bg-emerald-700 text-white transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                  onClick={() => onLaunchApp(app)}
+                  className="w-full py-3.5 px-5 rounded-xl font-semibold text-sm bg-emerald-600 hover:bg-emerald-700 text-white transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-xs"
                 >
-                  <Download className="w-4 h-4" />
-                  Disponível em Meus Apps (Baixar)
+                  <Monitor className="w-4 h-4" />
+                  Abrir / Executar Aplicativo Agora
                 </button>
-                <p className="text-xs text-center text-slate-500 dark:text-slate-400">
-                  Você já possui a licença deste aplicativo em sua biblioteca.
-                </p>
+                <button
+                  type="button"
+                  onClick={onOpenLibrary}
+                  className="w-full py-2.5 px-4 rounded-xl font-semibold text-xs border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Ver Instalador e Recibo em Meus Apps
+                </button>
               </div>
             ) : (
-              <button
-                type="button"
-                onClick={(e) => onPrimaryAction(app, e)}
-                className={`w-full py-3.5 px-5 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2 cursor-pointer ${
-                  isInCart
-                    ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900'
-                    : 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm'
-                }`}
-              >
-                {isInCart ? (
-                  <>
-                    <Check className="w-4 h-4" />
-                    No Carrinho — Abrir Checkout
-                  </>
-                ) : app.price === 0 ? (
-                  <>
-                    <Download className="w-4 h-4" />
-                    Instalar Gratuitamente Agora
-                  </>
-                ) : (
-                  <>
-                    <ShoppingBag className="w-4 h-4" />
-                    Comprar Aplicativo · {formatBRL(app.price)}
-                  </>
-                )}
-              </button>
+              <div className="space-y-2.5">
+                <button
+                  type="button"
+                  onClick={(e) => onPrimaryAction(app, e)}
+                  className={`w-full py-3.5 px-5 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                    isInCart
+                      ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900'
+                      : 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm'
+                  }`}
+                >
+                  {isInCart ? (
+                    <>
+                      <Check className="w-4 h-4" />
+                      No Carrinho — Abrir Checkout
+                    </>
+                  ) : app.price === 0 ? (
+                    <>
+                      <Download className="w-4 h-4" />
+                      Instalar e Executar Gratuitamente
+                    </>
+                  ) : (
+                    <>
+                      <ShoppingBag className="w-4 h-4" />
+                      Comprar Aplicativo · {formatBRL(app.price)}
+                    </>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onLaunchApp(app)}
+                  className="w-full py-2.5 px-4 rounded-xl font-semibold text-xs border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Monitor className="w-3.5 h-3.5" />
+                  Testar Demonstração Interativa no Navegador
+                </button>
+              </div>
             )}
 
             <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">

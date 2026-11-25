@@ -12,6 +12,7 @@ import { ResilientImage } from './components/ResilientImage';
 import { AppDetailModal } from './components/AppDetailModal';
 import { CartCheckoutDrawer } from './components/CartCheckoutDrawer';
 import { UserLibraryView } from './components/UserLibraryView';
+import { InteractiveAppRuntimeModal } from './components/InteractiveAppRuntimeModal';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import {
   auth,
@@ -105,6 +106,7 @@ function StorefrontContent() {
   // Navigation & Active App Detail state
   const [activeView, setActiveView] = useState<'store' | 'library'>('store');
   const [selectedAppId, setSelectedAppId] = useState<string | null>(null);
+  const [runningApp, setRunningApp] = useState<StoreApp | null>(null);
   const [isCartOpen, setIsCartOpen] = useState(false);
 
   // Real-time search and filters
@@ -424,8 +426,7 @@ function StorefrontContent() {
     e.stopPropagation();
 
     if (ownedIds.includes(app.id)) {
-      setSelectedAppId(null);
-      setActiveView('library');
+      setRunningApp(app);
       return;
     }
 
@@ -798,6 +799,7 @@ function StorefrontContent() {
               setSelectedAppId(null);
               setActiveView('library');
             }}
+            onLaunchApp={(appToRun) => setRunningApp(appToRun)}
             onAddReview={handleAddReview}
           />
         ) : activeView === 'library' ? (
@@ -807,6 +809,7 @@ function StorefrontContent() {
             isAuthenticated={Boolean(currentUser)}
             userEmail={currentUser?.email}
             onSelectApp={(app) => setSelectedAppId(app.id)}
+            onLaunchApp={(appToRun) => setRunningApp(appToRun)}
             onExploreStore={() => setActiveView('store')}
             onSignIn={handleGoogleSignIn}
           />
@@ -1195,6 +1198,14 @@ function StorefrontContent() {
           setActiveView('library');
         }}
       />
+
+      {/* Interactive App Runtime Sandbox Modal */}
+      {runningApp && (
+        <InteractiveAppRuntimeModal
+          app={runningApp}
+          onClose={() => setRunningApp(null)}
+        />
+      )}
 
       {/* Non-intrusive Toast Notification */}
       {toastMessage && (
